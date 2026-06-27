@@ -463,7 +463,7 @@ export class ClaudeAcpAgent implements Agent {
               if (message.is_error) {
                 throw RequestError.internalError(undefined, message.result);
               }
-              return { stopReason: "end_turn" };
+              return { stopReason: "end_turn", _meta: usageMeta(message) };
             }
             case "error_during_execution":
               if (message.is_error) {
@@ -762,6 +762,23 @@ export class ClaudeAcpAgent implements Agent {
       }
     };
   }
+}
+
+/** Build an ACP `_meta` payload carrying the turn's token usage + cost so ACP clients can show a context indicator. Returns undefined when the SDK reported no usage. */
+function usageMeta(message: any): Record<string, unknown> | undefined {
+  const u = message?.usage;
+  if (!u) return undefined;
+  return {
+    claudeCode: {
+      usage: {
+        input_tokens: u.input_tokens ?? 0,
+        cache_read_input_tokens: u.cache_read_input_tokens ?? 0,
+        cache_creation_input_tokens: u.cache_creation_input_tokens ?? 0,
+        output_tokens: u.output_tokens ?? 0,
+      },
+      costUsd: message.total_cost_usd ?? null,
+    },
+  };
 }
 
 async function getAvailableModels(query: Query): Promise<SessionModelState> {
